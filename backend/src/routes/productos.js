@@ -1,43 +1,78 @@
-import express from "express";
+import { Router } from "express";
+import multer from "multer";
+import path from "path";
 import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
-const router = express.Router();
+const router = Router();
 
-// Obtener todos
-router.get("/", async (req, res) => {
-  const productos = await prisma.producto.findMany();
-  res.json(productos);
+// Configuración Multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads"); 
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
 });
 
-// Crear
-router.post("/", async (req, res) => {
-  const { nombre, cantidad, precio } = req.body;
-  const producto = await prisma.producto.create({
-    data: { nombre, cantidad, precio }
-  });
-  res.json(producto);
+const upload = multer({ storage }); // SOLO ESTA debe existir
+
+// Ruta para crear producto
+router.post("/", upload.single("imagen"), async (req, res) => {
+  try {
+    const { codigo, nombre, cantidad, precio, ubicacion } = req.body;
+
+    if (!codigo || !nombre || !cantidad || !precio || !ubicacion) {
+      return res.status(400).json({ error: "Todos los campos son obligatorios" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "Debes subir una imagen" });
+    }
+
+    const imagenUrl = `/uploads/${req.file.filename}`;
+
+    const producto = await prisma.producto.create({
+      data: {
+        codigo,
+        nombre,
+        cantidad: Number(cantidad),
+        precio: Number(precio),
+        ubicacion,
+        imagen: imagenUrl,
+      },
+    });
+
+    res.json({ message: "Producto registrado", producto });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error en el servidor" });
+  }
 });
 
-// Actualizar
-router.put("/:id", async (req, res) => {
-  const { id } = req.params;
-  const { nombre, cantidad, precio } = req.body;
+// Ruta para añadir producto
+router.post('/añadir-producto', upload.single('imagen'), async (req, res) => {
+    try {
+        const { codigo, nombre, cantidad, precio, ubicacion } = req.body;
+        const imagenPath = req.file ? `/uploads/${req.file.filename}` : null;
 
-  const producto = await prisma.producto.update({
-    where: { id: Number(id) },
-    data: { nombre, cantidad, precio },
-  });
+        const producto = await prisma.producto.create({
+            data: {
+                codigo,
+                nombre,
+                cantidad: Number(cantidad),
+                precio: Number(precio),
+                ubicacion,
+                imagen: imagenPath
+            }
+        });
 
-  res.json(producto);
-});
-
-// Eliminar
-router.delete("/:id", async (req, res) => {
-  const { id } = req.params;
-  await prisma.producto.delete({
-    where: { id: Number(id) },
-  });
-  res.json({ message: "Producto eliminado" });
+        return res.status(201).json(producto);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Error al registrar el producto' });
+    }
 });
 
 export default router;

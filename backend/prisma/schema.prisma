@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,12 +8,17 @@ datasource db {
 }
 
 model Producto {
-  id       Int            @id @default(autoincrement())
-  nombre   String
-  cantidad Int
-  precio   Float
-  creadoEn DateTime       @default(now())
-  detalles DetalleVenta[] // <-- ESTA ES LA RELACIÓN FALTANTE
+  id        Int     @id @default(autoincrement())
+  codigo    String  @unique
+  nombre    String
+  cantidad  Int
+  precio    Float
+  ubicacion String
+  imagen    String?
+
+  // <-- agregar la relación inversa hacia DetalleVenta
+  detallesVenta DetalleVenta[]
+  createdAt     DateTime       @default(now())
 }
 
 model Venta {
@@ -30,12 +29,11 @@ model Venta {
 }
 
 model DetalleVenta {
-  id       Int @id @default(autoincrement())
-  cantidad Int
-
-  producto   Producto @relation(fields: [productoId], references: [id])
+  id         Int      @id @default(autoincrement())
+  cantidad   Int
   productoId Int
-
-  venta   Venta @relation(fields: [ventaId], references: [id])
-  ventaId Int
+  ventaId    Int
+  subtotal   Float
+  producto   Producto @relation(fields: [productoId], references: [id])
+  venta      Venta    @relation(fields: [ventaId], references: [id])
 }
